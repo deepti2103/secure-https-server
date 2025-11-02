@@ -1,78 +1,99 @@
+// app.js
 import express from "express";
 import dotenv from "dotenv";
-import https from "https";
-import fs from "fs";
 import mongoose from "mongoose";
 import session from "express-session";
-import passport from "passport";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
-import csrf from "csurf";
+import rateLimit from "express-rate-limit";
+import path from "path";
+import { fileURLToPath } from "url";
+import http from "http"; // ✅ using HTTP instead of HTTPS
+
+// Routes
 import authRoutes from "./routes/auth.js";
-import { verifyToken, verifyRole } from "./middleware/authMiddleware.js";
+import staticRoutes from "./routes/static.js";
+
+// Middleware
+import { verifyToken } from "./middleware/auth.js";
 
 dotenv.config();
+
+// Fix for ES module dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 
-// ✅ Security middleware
-app.use(helmet());
-app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+// ------------------- Security & Middleware -------------------
 
-// ✅ Session config
+// Helmet for HTTP headers
+app.use(helmet());
+
+// JSON parsing
+app.use(express.json());
+app.use(cookieParser());
+
+// Enable CORS for frontend access
+app.use(
+  cors({
+    origin: "http://localhost:3000", // change if your frontend runs elsewhere
+    credentials: true,
+  })
+);
+
+// Session management
 app.use(
   session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || "mySuperSecretKey",
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true,
     cookie: {
-      secure: true,
       httpOnly: true,
-      sameSite: "none",
+      secure: false, // ⚠️ HTTPS not used right now
+      sameSite: "lax",
+      maxAge: 60 * 60 * 1000, // 1 hour
     },
   })
 );
 
-// ✅ Initialize Passport
-app.use(passport.initialize());
-app.use(passport.session());
-
-// ✅ CSRF setup (disabled for API testing)
-app.use((req, res, next) => {
-  res.locals.csrfToken = "TEST_MODE_CSRF_BYPASS";
-  next();
+// Rate limiter for login brute force prevention
+const limiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 100,
+  message: "Too many requests, please try again later.",
 });
+app.use(limiter);
 
-// ✅ Routes
+// ------------------- Routes -------------------
 app.use("/auth", authRoutes);
+app.use("/static", staticRoutes);
 
-// ✅ Protected JWT route
-app.get("/api/user", verifyToken, (req, res) => {
-  res.json({ user: req.user });
+// Protected routes using JWT
+app.get("/profile", verifyToken, (req, res) => {
+  res.json({ profile: req.user });
 });
 
-// ✅ Role-based example route
-app.get("/api/admin", verifyToken, verifyRole("Admin"), (req, res) => {
-  res.json({ message: "Welcome, Admin!" });
+app.get("/dashboard", verifyToken, (req, res) => {
+  const features = req.user.role === "Admin" ? ["A", "B", "C"] : ["A"];
+  res.json({ features });
 });
 
-// ✅ MongoDB Connection
+// Default route
+app.get("/", (req, res) => {
+  res.send("<h1>Welcome to Secure Server (HTTP Mode)</h1>");
+});
+
+// ------------------- MongoDB Connection -------------------
 mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ Connected to MongoDB"))
+  .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// ✅ HTTPS Setup
-const port = process.env.PORT || 3001;
-try {
-  const options = {
-    key: fs.readFileSync(process.env.SSL_KEY),
-    cert: fs.readFileSync(process.env.SSL_CERT),
-  };
+// ------------------- Start HTTP Server -------------------
+const PORT = process.env.PORT || 3001;
 
-  https.createServer(options, app).listen(port, () => {
-    console.log(`✅ HTTPS server running securely on port ${port}`);
-  });
-} catch (err) {
-  console.error("❌ HTTPS Server Error:", err.message);
-}
+http.createServer(app).listen(PORT, () => {
+  console.log(`🚀 HTTP server running at http://localhost:${PORT}`);
+});

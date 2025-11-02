@@ -1,203 +1,321 @@
-Secure HTTPS Authentication & Authorization Server — Phase 2
-# Project Overview
+# Secure HTTPS Server – Complete README
 
-This project implements a secure, scalable authentication and authorization system for a startup’s web application.
-It supports local authentication (username/password) and Google Single Sign-On (SSO), with role-based access control (RBAC), JWT tokens, and security mechanisms such as HTTPS, CSRF protection, secure sessions, and rate limiting.
+A secure HTTPS-based Node.js server that implements user authentication, role-based access control, and protected API routes using **JWT**, **Express**, and **MongoDB**.
+This documentation provides complete setup, configuration, and testing instructions.
 
-Setting Up the Repository
-Prerequisites
+---
 
-Node.js v18 or later
+## **1. Project Overview**
 
-MongoDB installed and running locally
+This project demonstrates secure authentication and authorization using modern best practices:
 
-NPM or Yarn
+* **HTTPS** for encrypted communication
+* **JWT-based authentication**
+* **Role-based access (Admin/User)**
+* **Security middlewares (Helmet, CSRF, CORS)**
+* **MongoDB with Mongoose**
 
-(Optional) Google Cloud account for OAuth credentials
+---
 
-Installation Steps
+## **2. Technology Stack**
 
-Clone the Repository
+* **Node.js** – Backend runtime
+* **Express.js** – Web framework
+* **Mongoose** – MongoDB ORM
+* **bcrypt** – Password hashing
+* **jsonwebtoken** – Token-based authentication
+* **helmet** – HTTP security headers
+* **csurf** – CSRF protection
+* **dotenv** – Environment configuration
+* **cookie-parser** – Secure cookie handling
+* **HTTPS** – TLS encryption using self-signed certificates
 
-git clone https://github.com/<your-username>/secure-https-server.git
-cd secure-https-server
+---
 
+## **3. Environment Variables**
 
-Install Dependencies
+Create a `.env` file in your project root with the following content:
 
-npm install
-
-
-Environment Configuration
-Create a .env file in the project root:
-
+```bash
 PORT=3001
 MONGO_URI=mongodb://127.0.0.1:27017/secure_server
 SESSION_SECRET=mySuperSecretKey123
+JWT_SECRET=mySuperStrongSecretKey
 SSL_KEY=cert/private-key.pem
 SSL_CERT=cert/certificate.pem
-GOOGLE_CLIENT_ID=your_google_client_id_here
-GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
 GOOGLE_CALLBACK_URL=https://localhost:3001/auth/google/callback
+```
 
+---
 
-Generate Self-Signed SSL Certificates (if not already present)
+## **4. Installation and Setup**
 
-npm install selfsigned
-node -e "import selfsigned from 'selfsigned'; import fs from 'fs'; const p = selfsigned.generate([{name:'commonName',value:'localhost'}], {days:365}); fs.mkdirSync('cert', {recursive: true}); fs.writeFileSync('cert/private-key.pem', p.private); fs.writeFileSync('cert/certificate.pem', p.cert); console.log('✅ Created self-signed SSL certs');"
+### **4.1 Install Dependencies**
 
+```bash
+npm install
+```
 
-Run the Server
+### **4.2 Start the Server**
 
-npm run dev
+```bash
+npx nodemon app.js
+```
 
+### **4.3 Ensure MongoDB is Running**
 
-You should see:
+Check that MongoDB is active locally at:
 
-HTTPS server running securely on port 3001
-Connected to MongoDB
+```
+mongodb://127.0.0.1:27017
+```
 
-Authentication Mechanisms
-1. Local Authentication
+### **4.4 Generate HTTPS Certificates**
 
-Users can register and login using credentials.
+If you don’t have the files:
 
-Passwords are securely hashed with bcrypt before storage.
+```
+cert/private-key.pem
+cert/certificate.pem
+```
 
-JWT tokens are issued upon successful login.
+Generate them using **OpenSSL**:
 
-2. Google OAuth 2.0 (SSO)
+```bash
+openssl req -nodes -new -x509 -keyout private-key.pem -out certificate.pem
+```
 
-Users can log in with Google using Passport.js and GoogleStrategy.
+Then place them in the `cert/` folder.
 
-Upon successful authentication, a user record is created or updated in MongoDB.
+---
 
-3. Password Reset
+## **5. API Endpoints**
 
-Users can request a password reset using /auth/reset-password.
+| Method | Endpoint         | Description                           | Access                     |
+| ------ | ---------------- | ------------------------------------- | -------------------------- |
+| POST   | `/auth/register` | Register a new user or admin          | Public                     |
+| POST   | `/auth/login`    | Log in with username and password     | Public                     |
+| GET    | `/profile`       | Fetch user profile information        | Authenticated              |
+| GET    | `/dashboard`     | View dashboard features based on role | Authenticated & Role-based |
 
-New passwords are hashed and stored securely.
+---
 
-Role-Based Access Control (RBAC)
-Defined Roles
+## **6. Testing the API (via curl)**
 
-Admin — Full access to all routes and system management.
+### **6.1 Register a User**
 
-User — Limited access to their own data and shared routes.
+```bash
+curl -X POST "http://localhost:3001/auth/register" ^
+-H "Content-Type: application/json" ^
+-d "{\"username\":\"bob\",\"password\":\"1234\",\"role\":\"User\"}"
+```
 
-Middleware
+**Response:**
 
-authenticateToken: Verifies JWTs and authenticates users.
+```json
+{"message":"Registration successful"}
+```
 
-authorizeRole: Restricts access based on role.
+---
 
-Example Protected Routes
-Route	Access	Description
-/api/user	User & Admin	General access
-/api/admin	Admin only	Restricted route
-/profile	Authenticated users	Profile management
-JWT Implementation
+### **6.2 Login**
 
-# Tokens are generated using jsonwebtoken.
+```bash
+curl -X POST "http://localhost:3001/auth/login" ^
+-H "Content-Type: application/json" ^
+-d "{\"username\":\"bob\",\"password\":\"1234\"}"
+```
 
-Stored securely in HttpOnly cookies to prevent XSS attacks.
+**Response:**
 
-Tokens have a limited lifespan for security.
+```json
+{
+  "message": "Login successful",
+  "token": "<JWT_TOKEN_HERE>"
+}
+```
 
-Middleware ensures token validation before granting access.
+Copy the token value.
 
-Refresh Tokens
+---
 
-You can extend this with a refresh token strategy for longer sessions.
+### **6.3 Access Protected Route – /profile**
 
-# Security Features
-Feature	Implementation
-HTTPS	Self-signed SSL certificates
-Password Hashing	bcryptjs
-Session Security	Secure, HttpOnly, and SameSite cookies
-CSRF Protection	csurf middleware (temporarily bypassed for API testing)
-Rate Limiting	express-rate-limit
-Helmet	Adds key HTTP security headers
-CORS	Restricts origin access
-Session Fixation Protection	New session ID issued post-login
-Testing Strategy
-Manual Testing
+```bash
+curl -X GET "http://localhost:3001/profile" ^
+-H "Authorization: Bearer <JWT_TOKEN_HERE>"
+```
 
-# Test endpoints with curl or Postman:
+**Response:**
 
-curl -k -X POST https://localhost:3001/auth/register -H "Content-Type: application/json" -d "{\"username\":\"user1\",\"password\":\"123456\"}"
-curl -k -X POST https://localhost:3001/auth/login -H "Content-Type: application/json" -d "{\"username\":\"user1\",\"password\":\"123456\"}"
+```json
+{
+  "profile": {
+    "id": "6907e965c8156621acd67220",
+    "username": "bob",
+    "role": "User"
+  }
+}
+```
 
-# Simulated Attacks
+---
 
-Tested brute force prevention using rate limits.
+### **6.4 Access Role-Based Route – /dashboard**
 
-Verified CSRF rejection when token missing.
+```bash
+curl -X GET "http://localhost:3001/dashboard" ^
+-H "Authorization: Bearer <JWT_TOKEN_HERE>"
+```
 
-Confirmed role-based access with JWT differences.
+**Response (User):**
 
-Lessons Learned
+```json
+{"features":["A"]}
+```
 
-This project reinforced how security and usability must be balanced.
-# Key takeaways:
+**Response (Admin):**
 
-Strong password hashing (bcrypt) ensures database leaks don’t expose credentials.
+```json
+{"features":["A","B","C"]}
+```
 
-JWTs + HttpOnly cookies offer a flexible yet secure session model.
+---
 
-Implementing RBAC simplifies future scalability.
+## **7. Role-Based Access Example**
 
-Setting up CSRF and rate limiting greatly strengthens server resilience.
+### **7.1 Register Admin**
 
-Integrating SSO with Google enhances user experience but requires careful environment setup.
+```bash
+curl -X POST "http://localhost:3001/auth/register" ^
+-H "Content-Type: application/json" ^
+-d "{\"username\":\"admin1\",\"password\":\"adminpass\",\"role\":\"Admin\"}"
+```
 
-# Reflections
-Authentication Method Choice
+### **7.2 Login as Admin**
 
-I implemented both local and Google OAuth 2.0 SSO for flexibility.
-Local auth ensures independence from third-party providers, while Google SSO improves user experience and reduces password fatigue.
+```bash
+curl -X POST "http://localhost:3001/auth/login" ^
+-H "Content-Type: application/json" ^
+-d "{\"username\":\"admin1\",\"password\":\"adminpass\"}"
+```
 
-Access Control Structure
+### **7.3 Access Dashboard as Admin**
 
-I used a simple two-tier RBAC model (User / Admin).
-This keeps the system easy to maintain while ensuring clear separation of privileges.
+```bash
+curl -X GET "http://localhost:3001/dashboard" ^
+-H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
+```
 
-Token Management Decision
+**Response:**
 
-JWTs are stored securely in HttpOnly cookies with a 15-minute expiry and refresh mechanism.
-This balances convenience and protection against token misuse.
+```json
+{"features":["A","B","C"]}
+```
 
-Security Risks & Mitigation
+---
 
-I implemented:
+## **8. Testing Using Thunder Client or Postman**
 
-Session ID regeneration after login
+If you prefer a GUI:
 
-CSRF middleware for form protection
+1. Open **VS Code** → install the **Thunder Client** extension.
+2. Create a new request:
 
-Brute-force rate limiting on login
+   * Method: `POST`
+   * URL: `http://localhost:3001/auth/register`
+   * Body: JSON → raw:
 
-HTTPS for all requests
-These measures minimize common web vulnerabilities while maintaining a smooth UX.
+     ```json
+     {"username": "bob", "password": "1234", "role": "User"}
+     ```
+3. Add header for protected routes:
 
-Testing Strategy
+   ```
+   Authorization: Bearer <JWT_TOKEN_HERE>
+   ```
 
-I verified:
+---
 
-Login / logout flows
+## **9. Error Handling Examples**
 
-Token validation / expiry
+### **No Token Provided**
 
-Role enforcement
+```bash
+curl -X GET "http://localhost:3001/profile"
+```
 
-Error handling for invalid credentials
-Using cURL and Postman ensured realistic test coverage.
+**Response:**
 
-Lessons Learned
+```json
+{"message":"Access denied. No token provided."}
+```
 
-Proper JWT expiry handling prevents security holes.
+### **Invalid Credentials**
 
-RBAC middleware simplifies access control scaling.
+```bash
+curl -X POST "http://localhost:3001/auth/login" ^
+-H "Content-Type: application/json" ^
+-d "{\"username\":\"wrong\",\"password\":\"wrong\"}"
+```
 
-Environment variables and .gitignore are critical for safe deployment.
+**Response:**
 
+```json
+{"message":"Invalid username or password"}
+```
+
+---
+
+## **10. Directory Structure**
+
+```
+secure-https-server/
+│
+├── app.js
+├── .env
+├── package.json
+├── /cert
+│   ├── private-key.pem
+│   └── certificate.pem
+├── /middleware
+│   └── auth.js
+├── /models
+│   └── User.js
+├── /routes
+│   ├── auth.js
+│   └── static.js
+└── /public
+    └── index.html
+```
+
+---
+
+## **11. Troubleshooting**
+
+| Issue                                        | Cause                        | Solution                                      |
+| -------------------------------------------- | ---------------------------- | --------------------------------------------- |
+| `EADDRINUSE: address already in use :::3001` | Port 3001 is already in use  | Stop other process or change `PORT` in `.env` |
+| `Cannot find module 'auth.js'`               | File path incorrect          | Ensure `/middleware/auth.js` exists           |
+| `'openssl' is not recognized`                | OpenSSL not in PATH          | Install Git Bash or add OpenSSL to PATH       |
+| `Invalid username or password`               | Wrong credentials            | Check username and password stored in MongoDB |
+| `Access denied. No token provided.`          | Missing Authorization header | Add `Authorization: Bearer <token>`           |
+
+---
+
+## **12. Security Notes**
+
+* Always store `JWT_SECRET` and `SESSION_SECRET` securely.
+* Use HTTPS for production.
+* Tokens expire in **1 hour** by default.
+* Cookies are set with `httpOnly`, `secure`, and `sameSite="none"` flags for maximum protection.
+
+---
+
+
+## **13. Author**
+
+Developed by **Deepti**
+Web Design & Development – **SAIT College**
+For academic and portfolio demonstration purposes.

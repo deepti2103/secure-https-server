@@ -1,5 +1,5 @@
 Secure HTTPS Authentication & Authorization Server — Phase 2
-Project Overview
+# Project Overview
 
 This project implements a secure, scalable authentication and authorization system for a startup’s web application.
 It supports local authentication (username/password) and Google Single Sign-On (SSO), with role-based access control (RBAC), JWT tokens, and security mechanisms such as HTTPS, CSRF protection, secure sessions, and rate limiting.
@@ -98,7 +98,7 @@ Route	Access	Description
 /profile	Authenticated users	Profile management
 JWT Implementation
 
-Tokens are generated using jsonwebtoken.
+# Tokens are generated using jsonwebtoken.
 
 Stored securely in HttpOnly cookies to prevent XSS attacks.
 
@@ -110,7 +110,7 @@ Refresh Tokens
 
 You can extend this with a refresh token strategy for longer sessions.
 
-Security Features
+# Security Features
 Feature	Implementation
 HTTPS	Self-signed SSL certificates
 Password Hashing	bcryptjs
@@ -123,12 +123,12 @@ Session Fixation Protection	New session ID issued post-login
 Testing Strategy
 Manual Testing
 
-Test endpoints with curl or Postman:
+# Test endpoints with curl or Postman:
 
 curl -k -X POST https://localhost:3001/auth/register -H "Content-Type: application/json" -d "{\"username\":\"user1\",\"password\":\"123456\"}"
 curl -k -X POST https://localhost:3001/auth/login -H "Content-Type: application/json" -d "{\"username\":\"user1\",\"password\":\"123456\"}"
 
-Simulated Attacks
+# Simulated Attacks
 
 Tested brute force prevention using rate limits.
 
@@ -139,7 +139,7 @@ Confirmed role-based access with JWT differences.
 Lessons Learned
 
 This project reinforced how security and usability must be balanced.
-Key takeaways:
+# Key takeaways:
 
 Strong password hashing (bcrypt) ensures database leaks don’t expose credentials.
 
@@ -151,36 +151,53 @@ Setting up CSRF and rate limiting greatly strengthens server resilience.
 
 Integrating SSO with Google enhances user experience but requires careful environment setup.
 
-Demonstration Video Guide
+# Reflections
+Authentication Method Choice
 
-For your submission video:
+I implemented both local and Google OAuth 2.0 SSO for flexibility.
+Local auth ensures independence from third-party providers, while Google SSO improves user experience and reduces password fatigue.
 
-Start the server (npm run dev).
+Access Control Structure
 
-Show registration (/auth/register).
+I used a simple two-tier RBAC model (User / Admin).
+This keeps the system easy to maintain while ensuring clear separation of privileges.
 
-Show login and JWT return (/auth/login).
+Token Management Decision
 
-Access a protected route with valid JWT.
+JWTs are stored securely in HttpOnly cookies with a 15-minute expiry and refresh mechanism.
+This balances convenience and protection against token misuse.
 
-Try accessing /api/admin as a regular user (should fail).
+Security Risks & Mitigation
 
-Log in as Admin and show success.
+I implemented:
 
-(Optional) Demonstrate Google OAuth login.
+Session ID regeneration after login
 
-Technologies Used
+CSRF middleware for form protection
 
-Node.js
+Brute-force rate limiting on login
 
-Express.js
+HTTPS for all requests
+These measures minimize common web vulnerabilities while maintaining a smooth UX.
 
-MongoDB + Mongoose
+Testing Strategy
 
-Passport.js (Google OAuth 2.0)
+I verified:
 
-JWT
+Login / logout flows
 
-Helmet, CORS, csurf, express-rate-limit
+Token validation / expiry
 
-dotenv, cookie-parser
+Role enforcement
+
+Error handling for invalid credentials
+Using cURL and Postman ensured realistic test coverage.
+
+Lessons Learned
+
+Proper JWT expiry handling prevents security holes.
+
+RBAC middleware simplifies access control scaling.
+
+Environment variables and .gitignore are critical for safe deployment.
+

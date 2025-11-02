@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Secure Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(to bottom right, #1e3c72, #2a5298);
+      color: white;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 100px auto;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    p {
+      font-size: 18px;
+      margin-top: 0;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #f04e31;
+      border: none;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #d63e23;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="content">
+    <h1>Loading Secure Dashboard...</h1>
+  </div>
+
+  <script>
+    (async () => {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        alert("Please log in first!");
+        window.location.href = "/login.html";
+        return;
+      }
+
+      try {
+        const res = await fetch("https://localhost:3001/api/private", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          document.getElementById("content").innerHTML = `
+            <h1>Welcome, ${data.user.username}! 🎉</h1>
+            <p>You’ve successfully accessed the secure dashboard.</p>
+            <button id="logoutBtn">Logout</button>
+          `;
+
+          document.getElementById("logoutBtn").onclick = () => {
+            localStorage.removeItem("token");
+            window.location.href = "/login.html";
+          };
+        } else {
+          alert(data.message || "Access denied");
+          localStorage.removeItem("token");
+          window.location.href = "/login.html";
+        }
+      } catch (err) {
+        console.error("⚠️ Dashboard access error:", err);
+        alert("Session expired or invalid. Please log in again.");
+        localStorage.removeItem("token");
+        window.location.href = "/login.html";
+      }
+    })();
+  </script>
+</body>
+</html>

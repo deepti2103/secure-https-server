@@ -1,36 +1,78 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const http = require('http');
-const https = require('https');
+import express from "express";
+import dotenv from "dotenv";
+import https from "https";
+import fs from "fs";
+import mongoose from "mongoose";
+import session from "express-session";
+import passport from "passport";
+import cors from "cors";
+import helmet from "helmet";
+import csrf from "csurf";
+import authRoutes from "./routes/auth.js";
+import { verifyToken, verifyRole } from "./middleware/authMiddleware.js";
 
-// ==== HTTP (non-secure) server ====
-const http_app = express();
-const http_port = 3000;
+dotenv.config();
+const app = express();
 
-http_app.get('/', (req, res) => {
-    console.log('HTTP GET /');
-    res.send('<h1>Hello from an un-secured server</h1><h2 style="color:red;">!!!! AAHHHhhh !!!</h2>');
+// ✅ Security middleware
+app.use(helmet());
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json());
+
+// ✅ Session config
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: true,
+      httpOnly: true,
+      sameSite: "none",
+    },
+  })
+);
+
+// ✅ Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
+// ✅ CSRF setup (disabled for API testing)
+app.use((req, res, next) => {
+  res.locals.csrfToken = "TEST_MODE_CSRF_BYPASS";
+  next();
 });
 
-http.createServer(http_app).listen(http_port, () => {
-    console.log(`HTTP server running on port ${http_port}`);
+// ✅ Routes
+app.use("/auth", authRoutes);
+
+// ✅ Protected JWT route
+app.get("/api/user", verifyToken, (req, res) => {
+  res.json({ user: req.user });
 });
 
-// ==== HTTPS (secure) server ====
-const https_app = express();
-const https_port = 3001;
-
-https_app.get('/', (req, res) => {
-    console.log('HTTPS GET /');
-    res.send('<h1>Hello from a secured server</h1><h2 style="color:green;">Thank god!!!!</h2>');
+// ✅ Role-based example route
+app.get("/api/admin", verifyToken, verifyRole("Admin"), (req, res) => {
+  res.json({ message: "Welcome, Admin!" });
 });
 
-const options = {
-    key: fs.readFileSync(path.join(__dirname, 'cert/private-key.pem')),
-    cert: fs.readFileSync(path.join(__dirname, 'cert/certificate.pem')),
-};
+// ✅ MongoDB Connection
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-https.createServer(options, https_app).listen(https_port, () => {
-    console.log(`HTTPS server running on port ${https_port}`);
-});
+// ✅ HTTPS Setup
+const port = process.env.PORT || 3001;
+try {
+  const options = {
+    key: fs.readFileSync(process.env.SSL_KEY),
+    cert: fs.readFileSync(process.env.SSL_CERT),
+  };
+
+  https.createServer(options, app).listen(port, () => {
+    console.log(`✅ HTTPS server running securely on port ${port}`);
+  });
+} catch (err) {
+  console.error("❌ HTTPS Server Error:", err.message);
+}

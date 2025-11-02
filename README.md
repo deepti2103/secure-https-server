@@ -1,157 +1,186 @@
-Assignment Context
-
-This project is Phase 1 of a multi-phase web-security series focused on building a secure web application following industry best practices.
-In this phase, the goal is to:
-
-1. Establish a secure HTTPS server using SSL certificates.
-
-2. Apply security headers using Helmet.
-
-3. Implement effective caching to balance security and performance.
-
-4. Document configuration steps, reasoning, and lessons learned.
-
+Secure HTTPS Authentication & Authorization Server — Phase 2
 Project Overview
 
-You are consulting for a startup that needs to secure its web application before launch.
-Your task is to set up a secure backend that:
-1. Encrypts all data transmissions (HTTPS)
+This project implements a secure, scalable authentication and authorization system for a startup’s web application.
+It supports local authentication (username/password) and Google Single Sign-On (SSO), with role-based access control (RBAC), JWT tokens, and security mechanisms such as HTTPS, CSRF protection, secure sessions, and rate limiting.
 
-2. Protects users with proper HTTP security headers
+Setting Up the Repository
+Prerequisites
 
-3. Uses cache-control strategies that improve performance without leaking sensitive data
+Node.js v18 or later
 
-Tech Stack
+MongoDB installed and running locally
 
-1. Node.js + Express.js
+NPM or Yarn
 
-2. HTTPS with OpenSSL
+(Optional) Google Cloud account for OAuth credentials
 
-3. Helmet (security headers)
+Installation Steps
 
-4. Compression (performance)
+Clone the Repository
 
-5. Morgan (logging)
-
-Setup Instructions
-Requirements
-
-1. Node.js installed
-
-2. Windows (Command Prompt, PowerShell, or Git Bash)
-
-3. OpenSSL installed
-
-Clone and Install
-git clone https://github.com/DevPatel-art/secure-https-server.git
+git clone https://github.com/<your-username>/secure-https-server.git
 cd secure-https-server
+
+
+Install Dependencies
+
 npm install
 
-Generate SSL Certificates
 
-If not already created:
+Environment Configuration
+Create a .env file in the project root:
 
-mkdir cert
-openssl req -x509 -newkey rsa:2048 -nodes ^
-  -keyout cert/private-key.pem -out cert/certificate.pem -days 365 ^
-  -subj "/C=CA/ST=Alberta/L=Calgary/O=SecureServer/OU=WebSec/CN=localhost"
+PORT=3001
+MONGO_URI=mongodb://127.0.0.1:27017/secure_server
+SESSION_SECRET=mySuperSecretKey123
+SSL_KEY=cert/private-key.pem
+SSL_CERT=cert/certificate.pem
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+GOOGLE_CALLBACK_URL=https://localhost:3001/auth/google/callback
 
 
-This generates:
+Generate Self-Signed SSL Certificates (if not already present)
 
-1. cert/private-key.pem
+npm install selfsigned
+node -e "import selfsigned from 'selfsigned'; import fs from 'fs'; const p = selfsigned.generate([{name:'commonName',value:'localhost'}], {days:365}); fs.mkdirSync('cert', {recursive: true}); fs.writeFileSync('cert/private-key.pem', p.private); fs.writeFileSync('cert/certificate.pem', p.cert); console.log('✅ Created self-signed SSL certs');"
 
-2. cert/certificate.pem
-
-Note: The certificate is self-signed, so browsers will show a security warning in local development.
 
 Run the Server
-npm run dev   # uses nodemon
-# or
-npm start
+
+npm run dev
 
 
-Visit:
+You should see:
 
-1. http://localhost:3000
- → HTTP redirector
+HTTPS server running securely on port 3001
+Connected to MongoDB
 
-2. https://localhost:3001
- → Secure HTTPS server
+Authentication Mechanisms
+1. Local Authentication
 
-SSL Configuration
+Users can register and login using credentials.
 
-The server uses self-signed certificates generated with OpenSSL for local development.
-This encrypts communication between browser and server, ensuring no data is sent in plain text.
+Passwords are securely hashed with bcrypt before storage.
 
-const httpsOptions = {
-  key: fs.readFileSync("cert/private-key.pem"),
-  cert: fs.readFileSync("cert/certificate.pem"),
-};
-https.createServer(httpsOptions, app).listen(3001);
+JWT tokens are issued upon successful login.
 
+2. Google OAuth 2.0 (SSO)
 
-Why this method:
-Using a self-signed certificate is the simplest and fastest way to test HTTPS locally before deploying to a live server.
+Users can log in with Google using Passport.js and GoogleStrategy.
 
-Essential HTTP Headers (Helmet)
+Upon successful authentication, a user record is created or updated in MongoDB.
 
-1. Helmet is used to set HTTP headers for better security.
+3. Password Reset
 
-2. Configured headers include:
+Users can request a password reset using /auth/reset-password.
 
-3. CSP: Blocks unauthorized scripts & XSS attacks.
+New passwords are hashed and stored securely.
 
-4. HSTS: Forces HTTPS only.
+Role-Based Access Control (RBAC)
+Defined Roles
 
-5. X-Frame-Options: Prevents clickjacking.
+Admin — Full access to all routes and system management.
 
-6. X-Content-Type-Options: Stops MIME sniffing.
+User — Limited access to their own data and shared routes.
 
-7. Referrer-Policy: Protects referrer data.
+Middleware
 
-Example code:
+authenticateToken: Verifies JWTs and authenticates users.
 
-app.use(helmet());
-app.use(helmet.frameguard({ action: "deny" }));
-app.use(helmet.hsts({ maxAge: 15552000, includeSubDomains: true }));
-app.use(helmet.contentSecurityPolicy({
-  useDefaults: true,
-  directives: {
-    "default-src": ["'self'"],
-    "script-src": ["'self'"],
-    "style-src": ["'self'", "'unsafe-inline'"],
-    "img-src": ["'self'", "data:"],
-    "connect-src": ["'self'"],
-    "object-src": ["'none'"],
-    "frame-ancestors": ["'none'"],
-  },
-}));
+authorizeRole: Restricts access based on role.
 
-Testing
+Example Protected Routes
+Route	Access	Description
+/api/user	User & Admin	General access
+/api/admin	Admin only	Restricted route
+/profile	Authenticated users	Profile management
+JWT Implementation
 
-1. Visit https://localhost:3001/posts
+Tokens are generated using jsonwebtoken.
 
-2. Visit https://localhost:3001/profile
+Stored securely in HttpOnly cookies to prevent XSS attacks.
 
-Inspect cache headers in DevTools → Network → Headers → Response Headers
+Tokens have a limited lifespan for security.
+
+Middleware ensures token validation before granting access.
+
+Refresh Tokens
+
+You can extend this with a refresh token strategy for longer sessions.
+
+Security Features
+Feature	Implementation
+HTTPS	Self-signed SSL certificates
+Password Hashing	bcryptjs
+Session Security	Secure, HttpOnly, and SameSite cookies
+CSRF Protection	csurf middleware (temporarily bypassed for API testing)
+Rate Limiting	express-rate-limit
+Helmet	Adds key HTTP security headers
+CORS	Restricts origin access
+Session Fixation Protection	New session ID issued post-login
+Testing Strategy
+Manual Testing
+
+Test endpoints with curl or Postman:
+
+curl -k -X POST https://localhost:3001/auth/register -H "Content-Type: application/json" -d "{\"username\":\"user1\",\"password\":\"123456\"}"
+curl -k -X POST https://localhost:3001/auth/login -H "Content-Type: application/json" -d "{\"username\":\"user1\",\"password\":\"123456\"}"
+
+Simulated Attacks
+
+Tested brute force prevention using rate limits.
+
+Verified CSRF rejection when token missing.
+
+Confirmed role-based access with JWT differences.
 
 Lessons Learned
 
-1. I learned how to create SSL certificates and configure HTTPS in Express.
+This project reinforced how security and usability must be balanced.
+Key takeaways:
 
-2. I practiced Cache-Control for pages like /posts, /profile, and /docs/security.
+Strong password hashing (bcrypt) ensures database leaks don’t expose credentials.
 
-3. I learned how to use Helmet for adding security headers.
+JWTs + HttpOnly cookies offer a flexible yet secure session model.
 
-4. This project helped me understand how to combine encryption, caching, and headers for both security and performance.
+Implementing RBAC simplifies future scalability.
 
-Attributions & References
+Setting up CSRF and rate limiting greatly strengthens server resilience.
 
-1. Express.js Documentation
+Integrating SSO with Google enhances user experience but requires careful environment setup.
 
-2. Helmet Docs
+Demonstration Video Guide
 
-3. OpenSSL Manual
+For your submission video:
 
-4. MDN Web Docs – HTTP Headers
+Start the server (npm run dev).
+
+Show registration (/auth/register).
+
+Show login and JWT return (/auth/login).
+
+Access a protected route with valid JWT.
+
+Try accessing /api/admin as a regular user (should fail).
+
+Log in as Admin and show success.
+
+(Optional) Demonstrate Google OAuth login.
+
+Technologies Used
+
+Node.js
+
+Express.js
+
+MongoDB + Mongoose
+
+Passport.js (Google OAuth 2.0)
+
+JWT
+
+Helmet, CORS, csurf, express-rate-limit
+
+dotenv, cookie-parser

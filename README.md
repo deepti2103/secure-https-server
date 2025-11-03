@@ -17,6 +17,21 @@ This project demonstrates secure authentication and authorization using modern b
 
 ---
 
+## How to Clone and Run This Project
+
+git clone https://github.com/<your-username>/secure-https-server.git
+cd secure-https-server
+npm install
+Create a file named .env in the project root and add your credentials:
+MONGO_URI=mongodb+srv://<your-cluster-url>
+JWT_SECRET=your_jwt_secret
+SESSION_SECRET=your_session_secret
+PORT=3001
+CLIENT_ORIGIN=http://localhost:3000
+
+npx nodemon app.js
+
+
 ## **2. Technology Stack**
 
 * **Node.js** – Backend runtime
@@ -114,135 +129,20 @@ curl -X GET "http://localhost:3001/profile" -H "Authorization: Bearer <your_toke
 
 
 STEP 5 — Access /dashboard as bob
-curl -X GET "http://localhost:3001/dashboard" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MDdlOTY1YzgxNTY2MjFhY2Q2NzIyMCIsInVzZXJuYW1lIjoiYm9iIiwicm9sZSI6IlVzZXIiLCJpYXQiOjE3NjIxMjkzMzEsImV4cCI6MTc2MjEzMjkzMX0.1S5fHfVRREN9J0Rpd3quNVPE58AANv_KypeSy2ZZNKA"
+curl -X GET "http://localhost:3001/dashboard" -H "Authorization: Bearer <token>"
 
 STEP 6 — Login as admin1
 curl -X POST "http://localhost:3001/auth/login" -H "Content-Type: application/json" -d "{\"username\":\"admin1\",\"password\":\"adminpass\"}"
 
 STEP 7 — Access /dashboard as Admin
-curl -X GET "http://localhost:3001/dashboard" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MDdmMmM5MDhiZWVhMzRlZGM5OTA4NCIsInVzZXJuYW1lIjoiYWRtaW4xIiwicm9sZSI6IkFkbWluIiwiaWF0IjoxNzYyMTI5NDI5LCJleHAiOjE3NjIxMzMwMjl9.mAs0U5SReX91B8YSygDSP15Ovj0YXILDm3GOmT2mAN8"
+curl -X GET "http://localhost:3001/dashboard" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MDdmMmM5MDhiZWVhMzRlZGM5OTA4NCIsInVzZXJuYW1lIjoiYWRtaW4xIiwicm9sZSI6IkFkbWluIiwiaWF0IjoxNzYyMTMwNDAxLCJleHAiOjE3NjIxMzQwMDF9.uh8PLfO6SRJkIOSi4ZmsMPzsgLVCwh-rj4a7RtXZerg"
 
 STEP 8 — Open HTTPS in Browser
 https://localhost:3001
 
-
 ---
 
-## **6. Testing the API (via curl)**
-
-### **6.1 Register a User**
-
-```bash
-curl -X POST "http://localhost:3001/auth/register" ^
--H "Content-Type: application/json" ^
--d "{\"username\":\"bob\",\"password\":\"1234\",\"role\":\"User\"}"
-```
-
-**Response:**
-
-```json
-{"message":"Registration successful"}
-```
-
----
-
-### **6.2 Login**
-
-```bash
-curl -X POST "http://localhost:3001/auth/login" ^
--H "Content-Type: application/json" ^
--d "{\"username\":\"bob\",\"password\":\"1234\"}"
-```
-
-**Response:**
-
-```json
-{
-  "message": "Login successful",
-  "token": "<JWT_TOKEN_HERE>"
-}
-```
-
-Copy the token value.
-
----
-
-### **6.3 Access Protected Route – /profile**
-
-```bash
-curl -X GET "http://localhost:3001/profile" ^
--H "Authorization: Bearer <JWT_TOKEN_HERE>"
-```
-
-**Response:**
-
-```json
-{
-  "profile": {
-    "id": "6907e965c8156621acd67220",
-    "username": "bob",
-    "role": "User"
-  }
-}
-```
-
----
-
-### **6.4 Access Role-Based Route – /dashboard**
-
-```bash
-curl -X GET "http://localhost:3001/dashboard" ^
--H "Authorization: Bearer <JWT_TOKEN_HERE>"
-```
-
-**Response (User):**
-
-```json
-{"features":["A"]}
-```
-
-**Response (Admin):**
-
-```json
-{"features":["A","B","C"]}
-```
-
----
-
-## **7. Role-Based Access Example**
-
-### **7.1 Register Admin**
-
-```bash
-curl -X POST "http://localhost:3001/auth/register" ^
--H "Content-Type: application/json" ^
--d "{\"username\":\"admin1\",\"password\":\"adminpass\",\"role\":\"Admin\"}"
-```
-
-### **7.2 Login as Admin**
-
-```bash
-curl -X POST "http://localhost:3001/auth/login" ^
--H "Content-Type: application/json" ^
--d "{\"username\":\"admin1\",\"password\":\"adminpass\"}"
-```
-
-### **7.3 Access Dashboard as Admin**
-
-```bash
-curl -X GET "http://localhost:3001/dashboard" ^
--H "Authorization: Bearer <ADMIN_JWT_TOKEN>"
-```
-
-**Response:**
-
-```json
-{"features":["A","B","C"]}
-```
-
----
-
-## **8. Testing Using Thunder Client or Postman**
+##  Testing Using Thunder Client or Postman**
 
 If you prefer a GUI:
 
@@ -264,7 +164,7 @@ If you prefer a GUI:
 
 ---
 
-## **9. Error Handling Examples**
+##  Error Handling Examples**
 
 ### **No Token Provided**
 
@@ -294,7 +194,7 @@ curl -X POST "http://localhost:3001/auth/login" ^
 
 ---
 
-## **10. Directory Structure**
+##  Directory Structure**
 
 ```
 secure-https-server/
@@ -318,7 +218,7 @@ secure-https-server/
 
 ---
 
-## **11. Troubleshooting**
+##  Troubleshooting**
 
 | Issue                                        | Cause                        | Solution                                      |
 | -------------------------------------------- | ---------------------------- | --------------------------------------------- |
@@ -330,7 +230,7 @@ secure-https-server/
 
 ---
 
-## **12. Security Notes**
+##  Security Notes**
 
 * Always store `JWT_SECRET` and `SESSION_SECRET` securely.
 * Use HTTPS for production.
@@ -340,7 +240,7 @@ secure-https-server/
 ---
 
 
-## **13. Author**
+##  Author**
 
 Developed by **Deepti**
 Web Design & Development – **SAIT College**

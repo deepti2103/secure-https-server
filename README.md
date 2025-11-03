@@ -93,12 +93,38 @@ Then place them in the `cert/` folder.
 
 ## **5. API Endpoints**
 
-| Method | Endpoint         | Description                           | Access                     |
-| ------ | ---------------- | ------------------------------------- | -------------------------- |
-| POST   | `/auth/register` | Register a new user or admin          | Public                     |
-| POST   | `/auth/login`    | Log in with username and password     | Public                     |
-| GET    | `/profile`       | Fetch user profile information        | Authenticated              |
-| GET    | `/dashboard`     | View dashboard features based on role | Authenticated & Role-based |
+#1 – Register a New User or Admin
+
+Endpoint:
+POST /auth/register
+Access: Public
+Description: Creates a new user or admin account.
+STEP 1 — Register a Normal User
+curl -X POST "http://localhost:3001/auth/register" -H "Content-Type: application/json" -d "{\"username\":\"bob\",\"password\":\"1234\",\"role\":\"User\"}"
+STEP 2 — Register an Admin User
+curl -X POST "http://localhost:3001/auth/register" -H "Content-Type: application/json" -d "{\"username\":\"admin1\",\"password\":\"adminpass\",\"role\":\"Admin\"}"
+
+
+ STEP 3 — Login as bob
+ curl -X POST "http://localhost:3001/auth/login" -H "Content-Type: application/json" -d "{\"username\":\"bob\",\"password\":\"1234\"}"
+
+STEP 4 — Access /profile as bob
+
+curl -X GET "http://localhost:3001/profile" -H "Authorization: Bearer <your_token_here>"
+
+
+STEP 5 — Access /dashboard as bob
+curl -X GET "http://localhost:3001/dashboard" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MDdlOTY1YzgxNTY2MjFhY2Q2NzIyMCIsInVzZXJuYW1lIjoiYm9iIiwicm9sZSI6IlVzZXIiLCJpYXQiOjE3NjIxMjkzMzEsImV4cCI6MTc2MjEzMjkzMX0.1S5fHfVRREN9J0Rpd3quNVPE58AANv_KypeSy2ZZNKA"
+
+STEP 6 — Login as admin1
+curl -X POST "http://localhost:3001/auth/login" -H "Content-Type: application/json" -d "{\"username\":\"admin1\",\"password\":\"adminpass\"}"
+
+STEP 7 — Access /dashboard as Admin
+curl -X GET "http://localhost:3001/dashboard" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MDdmMmM5MDhiZWVhMzRlZGM5OTA4NCIsInVzZXJuYW1lIjoiYWRtaW4xIiwicm9sZSI6IkFkbWluIiwiaWF0IjoxNzYyMTI5NDI5LCJleHAiOjE3NjIxMzMwMjl9.mAs0U5SReX91B8YSygDSP15Ovj0YXILDm3GOmT2mAN8"
+
+STEP 8 — Open HTTPS in Browser
+https://localhost:3001
+
 
 ---
 

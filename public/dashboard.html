@@ -49,46 +49,7 @@
     <h1>Loading Secure Dashboard...</h1>
   </div>
 
-  <script>
-    (async () => {
-      const token = localStorage.getItem("token");
+  <script src="dashboard.js" defer></script>
 
-      if (!token) {
-        alert("Please log in first!");
-        window.location.href = "/login.html";
-        return;
-      }
-
-      try {
-        const res = await fetch("https://localhost:3001/api/private", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-          document.getElementById("content").innerHTML = `
-            <h1>Welcome, ${data.user.username}! 🎉</h1>
-            <p>You’ve successfully accessed the secure dashboard.</p>
-            <button id="logoutBtn">Logout</button>
-          `;
-
-          document.getElementById("logoutBtn").onclick = () => {
-            localStorage.removeItem("token");
-            window.location.href = "/login.html";
-          };
-        } else {
-          alert(data.message || "Access denied");
-          localStorage.removeItem("token");
-          window.location.href = "/login.html";
-        }
-      } catch (err) {
-        console.error("⚠️ Dashboard access error:", err);
-        alert("Session expired or invalid. Please log in again.");
-        localStorage.removeItem("token");
-        window.location.href = "/login.html";
-      }
-    })();
-  </script>
 </body>
 </html>

@@ -8,16 +8,36 @@ import passport from "passport";
 import cors from "cors";
 import helmet from "helmet";
 import csrf from "csurf";
+import path from "path";
+import { fileURLToPath } from "url";
+
 import authRoutes from "./routes/auth.js";
+import apiRoutes from "./routes/api.js";
 import { verifyToken, verifyRole } from "./middleware/authMiddleware.js";
 
 dotenv.config();
+
 const app = express();
+
+// ✅ Resolve __dirname in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ✅ Security middleware
 app.use(helmet());
-app.use(cors({ origin: true, credentials: true }));
+app.use(
+  cors({
+    origin: "https://localhost:3001",
+    credentials: true,
+  })
+);
+
+// ✅ Body parsing for JSON + form data
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ✅ Serve static files from /public
+app.use(express.static(path.join(__dirname, "public")));
 
 // ✅ Session config
 app.use(
@@ -26,9 +46,9 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: true,
-      httpOnly: true,
-      sameSite: "none",
+      secure: true,      // cookie only sent over HTTPS
+      httpOnly: true,    // JS cannot access cookies
+      sameSite: "none",  // allows cross-site if needed
     },
   })
 );
@@ -37,16 +57,17 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-// ✅ CSRF setup (disabled for API testing)
+// ✅ CSRF setup (bypassed for now for testing)
 app.use((req, res, next) => {
   res.locals.csrfToken = "TEST_MODE_CSRF_BYPASS";
   next();
 });
 
 // ✅ Routes
-app.use("/auth", authRoutes);
+app.use("/auth", authRoutes);  // login/register
+app.use("/api", apiRoutes);    // dashboard + profile APIs
 
-// ✅ Protected JWT route
+// ✅ Protected JWT route (example)
 app.get("/api/user", verifyToken, (req, res) => {
   res.json({ user: req.user });
 });
@@ -64,6 +85,7 @@ mongoose
 
 // ✅ HTTPS Setup
 const port = process.env.PORT || 3001;
+
 try {
   const options = {
     key: fs.readFileSync(process.env.SSL_KEY),

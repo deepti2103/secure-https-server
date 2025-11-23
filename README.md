@@ -1,203 +1,223 @@
-Secure HTTPS Authentication & Authorization Server — Phase 2
-# Project Overview
+** Secure User Profile Dashboard — Phase 3
 
-This project implements a secure, scalable authentication and authorization system for a startup’s web application.
-It supports local authentication (username/password) and Google Single Sign-On (SSO), with role-based access control (RBAC), JWT tokens, and security mechanisms such as HTTPS, CSRF protection, secure sessions, and rate limiting.
+Implementing Security Best Practices**
 
-Setting Up the Repository
-Prerequisites
+This project enhances a secure web application by adding a fully protected User Profile Dashboard with industry-grade security features. It implements JWT authentication, input validation, output sanitization, AES-256-CBC encryption, HTTPS, and dependency auditing, fully aligned with SAIT Phase 3 requirements.
 
-Node.js v18 or later
-
-MongoDB installed and running locally
-
-NPM or Yarn
-
-(Optional) Google Cloud account for OAuth credentials
-
-Installation Steps
-
-Clone the Repository
-
-git clone https://github.com/<your-username>/secure-https-server.git
+1. Installation & Application Setup
+1.1 Clone the Repository
+git clone <your-repository-url>
 cd secure-https-server
 
-
-Install Dependencies
-
+1.2 Install Dependencies
 npm install
 
+1.3 Configure Environment Variables
 
-Environment Configuration
 Create a .env file in the project root:
 
 PORT=3001
-MONGO_URI=mongodb://127.0.0.1:27017/secure_server
-SESSION_SECRET=mySuperSecretKey123
+MONGO_URI=your-mongodb-url
+SESSION_SECRET=your-session-secret
+JWT_SECRET=your-jwt-secret
 SSL_KEY=cert/private-key.pem
 SSL_CERT=cert/certificate.pem
-GOOGLE_CLIENT_ID=your_google_client_id_here
-GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-GOOGLE_CALLBACK_URL=https://localhost:3001/auth/google/callback
+ENCRYPTION_KEY=12345678901234567890123456789012
 
 
-Generate Self-Signed SSL Certificates (if not already present)
+ENCRYPTION_KEY must be exactly 32 characters (required for AES-256-CBC).
 
-npm install selfsigned
-node -e "import selfsigned from 'selfsigned'; import fs from 'fs'; const p = selfsigned.generate([{name:'commonName',value:'localhost'}], {days:365}); fs.mkdirSync('cert', {recursive: true}); fs.writeFileSync('cert/private-key.pem', p.private); fs.writeFileSync('cert/certificate.pem', p.cert); console.log('✅ Created self-signed SSL certs');"
-
-
-Run the Server
-
+1.4 Start the HTTPS Server
 npm run dev
 
 
-You should see:
+Expected output:
 
 HTTPS server running securely on port 3001
 Connected to MongoDB
 
-Authentication Mechanisms
-1. Local Authentication
+1.5 Access the Application
+https://localhost:3001
 
-Users can register and login using credentials.
+1.6 Pages Included
 
-Passwords are securely hashed with bcrypt before storage.
+register.html
 
-JWT tokens are issued upon successful login.
+login.html
 
-2. Google OAuth 2.0 (SSO)
+dashboard.html (JWT-protected)
 
-Users can log in with Google using Passport.js and GoogleStrategy.
+2. Input Validation (Client + Server)
+2.1 Validation Rules
+✔ Name
 
-Upon successful authentication, a user record is created or updated in MongoDB.
+3–50 characters
 
-3. Password Reset
+Alphabets + spaces only
 
-Users can request a password reset using /auth/reset-password.
+Regex:
 
-New passwords are hashed and stored securely.
+/^[A-Za-z\s]{3,50}$/
 
-Role-Based Access Control (RBAC)
-Defined Roles
+✔ Email
 
-Admin — Full access to all routes and system management.
+Must follow RFC format
 
-User — Limited access to their own data and shared routes.
+Validated with validator.isEmail()
 
-Middleware
+Normalized with validator.normalizeEmail()
 
-authenticateToken: Verifies JWTs and authenticates users.
+✔ Bio
 
-authorizeRole: Restricts access based on role.
+Maximum 500 characters
 
-Example Protected Routes
-Route	Access	Description
-/api/user	User & Admin	General access
-/api/admin	Admin only	Restricted route
-/profile	Authenticated users	Profile management
-JWT Implementation
+No HTML tags
 
-# Tokens are generated using jsonwebtoken.
+No JavaScript event attributes
 
-Stored securely in HttpOnly cookies to prevent XSS attacks.
+Allowed characters:
+A–Z, 0–9, spaces, . , ! ? ' " ( ) -
 
-Tokens have a limited lifespan for security.
+Regex:
 
-Middleware ensures token validation before granting access.
+[A-Za-z0-9\s.,!?'"()-]*
 
-Refresh Tokens
+2.2 Client-Side Validation
 
-You can extend this with a refresh token strategy for longer sessions.
+Located in public/dashboard.js.
+Provides instant UX feedback but does not replace server-side validation.
 
-# Security Features
-Feature	Implementation
-HTTPS	Self-signed SSL certificates
-Password Hashing	bcryptjs
-Session Security	Secure, HttpOnly, and SameSite cookies
-CSRF Protection	csurf middleware (temporarily bypassed for API testing)
-Rate Limiting	express-rate-limit
-Helmet	Adds key HTTP security headers
-CORS	Restricts origin access
-Session Fixation Protection	New session ID issued post-login
-Testing Strategy
-Manual Testing
+2.3 Server-Side Validation
 
-# Test endpoints with curl or Postman:
+Server enforces:
 
-curl -k -X POST https://localhost:3001/auth/register -H "Content-Type: application/json" -d "{\"username\":\"user1\",\"password\":\"123456\"}"
-curl -k -X POST https://localhost:3001/auth/login -H "Content-Type: application/json" -d "{\"username\":\"user1\",\"password\":\"123456\"}"
+Regex matching
 
-# Simulated Attacks
+Email validation
 
-Tested brute force prevention using rate limits.
+Length limits
 
-Verified CSRF rejection when token missing.
+validator.escape()
 
-Confirmed role-based access with JWT differences.
+Blocking HTML tags
 
-Lessons Learned
+Blocking event attributes (onerror, onclick, etc.)
 
-This project reinforced how security and usability must be balanced.
-# Key takeaways:
+Example server error:
 
-Strong password hashing (bcrypt) ensures database leaks don’t expose credentials.
+{ "error": "Invalid name format" }
 
-JWTs + HttpOnly cookies offer a flexible yet secure session model.
+3. Output Encoding & Sanitization
 
-Implementing RBAC simplifies future scalability.
+Ensures that any stored or incoming data cannot execute as JavaScript.
 
-Setting up CSRF and rate limiting greatly strengthens server resilience.
+Techniques Used
 
-Integrating SSO with Google enhances user experience but requires careful environment setup.
+validator.escape() → escapes <script> to &lt;script&gt;
 
-# Reflections
-Authentication Method Choice
+validator.stripLow() → removes hidden ASCII characters
 
-I implemented both local and Google OAuth 2.0 SSO for flexibility.
-Local auth ensures independence from third-party providers, while Google SSO improves user experience and reduces password fatigue.
+Blocking:
 
-Access Control Structure
+<script>
 
-I used a simple two-tier RBAC model (User / Admin).
-This keeps the system easy to maintain while ensuring clear separation of privileges.
+<iframe>
 
-Token Management Decision
+<img>
 
-JWTs are stored securely in HttpOnly cookies with a 15-minute expiry and refresh mechanism.
-This balances convenience and protection against token misuse.
+on* event handlers
 
-Security Risks & Mitigation
+Result: Stored XSS attacks become impossible.
 
-I implemented:
+4. Encryption Techniques
+4.1 AES-256-CBC Encryption (At Rest)
 
-Session ID regeneration after login
+Sensitive fields encrypted before storing in MongoDB:
 
-CSRF middleware for form protection
+email → emailEncrypted
 
-Brute-force rate limiting on login
+bio → bioEncrypted
 
-HTTPS for all requests
-These measures minimize common web vulnerabilities while maintaining a smooth UX.
+Each field uses a unique IV (initialization vector).
 
-Testing Strategy
+Example MongoDB document:
+{
+  "emailEncrypted": "b38a0c9f9a...",
+  "emailIV": "4ba82fc1...",
+  "bioEncrypted": "c9af39bb81...",
+  "bioIV": "88ecf33d..."
+}
 
-I verified:
 
-Login / logout flows
+Encryption logic stored in:
 
-Token validation / expiry
+utils/encryption.js
 
-Role enforcement
+4.2 HTTPS Encryption (In Transit)
 
-Error handling for invalid credentials
-Using cURL and Postman ensured realistic test coverage.
+All communication uses:
 
-Lessons Learned
+An SSL certificate
 
-Proper JWT expiry handling prevents security holes.
+Node.js HTTPS server
 
-RBAC middleware simplifies access control scaling.
+Protects users from:
 
-Environment variables and .gitignore are critical for safe deployment.
+MITM attacks
 
+Token hijacking
+
+Credential theft
+
+5. Dependency Management
+5.1 Manual Audit
+npm audit
+
+
+Expected:
+
+found 0 vulnerabilities
+
+5.2 GitHub Automated Auditing
+
+Workflow file:
+
+.github/workflows/security.yml
+
+
+Runs:
+
+npm install
+
+npm audit
+
+Flags vulnerabilities automatically
+
+6. Reflection (Lessons Learned)
+
+This phase significantly strengthened understanding of real-world security practices.
+
+Key Takeaways
+
+✔ Security must be layered (validation + sanitization + encryption + HTTPS)
+
+✔ Input validation blocks harmful data early
+
+✔ Output encoding prevents stored XSS
+
+✔ AES-256-CBC secures sensitive information
+
+✔ HTTPS ensures encrypted transmission
+
+✔ Dependency auditing keeps the project safe long-term
+
+Malicious Payloads Tested
+<script>alert(1)</script>
+<img src=x onerror=alert(1)>
+Zero-width whitespace characters
+SQL-style strings
+
+
+All were successfully sanitized or blocked, demonstrating effective protection.
+
+This assignment helped apply production-level, industry-relevant security practices.

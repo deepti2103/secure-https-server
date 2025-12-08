@@ -1,223 +1,175 @@
-** Secure User Profile Dashboard — Phase 3
+# Phase 4 – Security Testing, Threat Modeling & Ethical Considerations  
+## Secure HTTPS Web Application
 
-Implementing Security Best Practices**
+This document summarizes the security assessment, threat model, vulnerability testing, mitigation actions, and ethical/legal considerations for my secure HTTPS-based web application.
 
-This project enhances a secure web application by adding a fully protected User Profile Dashboard with industry-grade security features. It implements JWT authentication, input validation, output sanitization, AES-256-CBC encryption, HTTPS, and dependency auditing, fully aligned with SAIT Phase 3 requirements.
+---
 
-1. Installation & Application Setup
-1.1 Clone the Repository
-git clone <your-repository-url>
-cd secure-https-server
+# **Part A: Threat Model**
 
-1.2 Install Dependencies
-npm install
+## **1. Critical Assets Identified**
+- **User authentication data**  
+  - Username  
+  - Password (stored as hashed values)  
+  - Role (User/Admin)  
+- **Profile information**  
+  - Name  
+  - Encrypted email  
+  - Encrypted bio  
+- **JWT tokens** used for authentication  
+- **Session cookies**  
+- **MongoDB database** containing user records  
+- **HTTPS certificates** (private key + certificate)
 
-1.3 Configure Environment Variables
+---
 
-Create a .env file in the project root:
+## **2. Potential Threats (STRIDE Framework)**
 
-PORT=3001
-MONGO_URI=your-mongodb-url
-SESSION_SECRET=your-session-secret
-JWT_SECRET=your-jwt-secret
-SSL_KEY=cert/private-key.pem
-SSL_CERT=cert/certificate.pem
-ENCRYPTION_KEY=12345678901234567890123456789012
+| STRIDE Category | Threat Example | Impact | Likelihood | Risk |
+|----------------|----------------|---------|-----------|-------|
+| **S – Spoofing** | Fake login with stolen credentials | High | Medium | High |
+| **T – Tampering** | JWT modification | High | Medium | High |
+| **R – Repudiation** | User denies activity without logging | Medium | Low | Medium |
+| **I – Information Disclosure** | Email or bio decryption if key leaked | High | Medium | High |
+| **D – Denial of Service** | Flooding API endpoints | Medium | Medium | Medium |
+| **E – Elevation of Privilege** | Normal user accessing `/api/admin` | High | Low | Medium |
+
+---
+
+## **3. Threat Model Diagram (DFD)**  
+A full Data Flow Diagram (DFD) was created showing:
+
+- Browser (Untrusted Zone)  
+- HTTPS API Server (Trusted Zone)  
+- MongoDB (Data Store Zone)  
+- Trust boundaries  
+- Data flows: Login, Register, Dashboard, Profile GET/POST  
+- Attack vectors: XSS, JWT theft, token tampering, header injection  
+
+*(Diagram submitted separately on Brightspace.)*
+
+---
+
+# 📌 **Part B: Security Testing**
+
+Security was tested using **manual testing**, **npm audit**, and reviewing common automated scan findings (e.g., OWASP ZAP).
+
+---
+
+## **1. Manual Testing**
+
+### **SQL Injection Simulation**
+- Attempt:  
+  `' OR '1'='1`
+- Result: Login rejected with **"enter valid credentials"**.
+- Meaning:  
+  - Inputs are validated  
+  - No injection or bypass occurred  
+  - Authentication cannot be tricked by SQL-like payloads  
+
+---
+
+### **Cross-Site Scripting (XSS) Simulation**
+- Attempt in Bio field:  
+  ```html
+  <script>alert("XSS")</script>
+
+Result:
+
+App rejected the input with:
+"Bio cannot contain HTML tags"
+
+Payload never executed
+
+Meaning:
+
+Client-side validation prevents script injection
+
+Reduces XSS attack surface
+
+## Dependency Vulnerability Scan (npm audit)
+Initial audit results:
+5 vulnerabilities (2 low, 1 moderate, 2 high)
+
+Action taken:
+npm audit fix
+
+Current results after fix:
+2 low severity vulnerabilities (in cookie/csurf)
+
+Did NOT run:
+npm audit fix --force
+because it introduces breaking changes by installing a newer version of csurf.
+
+## Security Header Testing
+Common automated scan findings (e.g., OWASP ZAP) typically include:
+* Missing CSP header
+* Missing X-Frame-Options
+* Missing X-Content-Type-Options
+* Cookies missing HttpOnly / Secure flags
+* Missing anti-CSRF tokens
+* These were manually reviewed and addressed where appropriate.
+
+## Vulnerability Fixes
+Added Security Headers:
+app.use((req, res, next) => {
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  next();
+});
+
+Enabled Helmet for Standard Protections:
+app.use(helmet());
+
+Added Content Security Policy (CSP):
+app.use(
+  helmet.contentSecurityPolicy({
+    useDefaults: true,
+    directives: {
+      "default-src": ["'self'"],
+      "script-src": ["'self'"],
+      "style-src": ["'self'", "'unsafe-inline'"],
+      "img-src": ["'self'", "data:"],
+      "connect-src": ["'self'", "https://localhost:3001"],
+      "object-src": ["'none'"],
+      "frame-ancestors": ["'none'"],
+    },
+  })
+);
+
+Input Validation for XSS Mitigation:
+In dashboard.js, added checks to block:
+HTML tags
+Unsafe characters
+Script injection
+
+## Ethical & Legal Considerations
+Ethical Responsibilities:
+Security testing was performed only on my own application, respecting ethical boundaries.
+SQLi, XSS, and other simulated attacks were conducted in a controlled, non-malicious environment.
+Sensitive data such as emails and bios are encrypted using AES before storage.
+
+Legal Responsibilities:
+Followed principles aligned with PIPEDA (Canada):
+Protect personal data
+Minimize exposure
+Do not store plaintext sensitive information
+HTTPS ensures encrypted data-in-transit.
+Passwords are hashed, not stored in plaintext.
+No unauthorized testing was performed on external systems.
+
+## Tools Used
+Manual testing	- SQLi, XSS, login bypass tests
+npm audit	- Dependency vulnerability detection
+Helmet.js	- Security headers
+AES Encryption -	Protect sensitive profile fields
+JWT	- Secure stateless authentication
+HTTPS- 	Encrypted data transport
+
+## Lessons Learned
+Security is not a one-time task — it requires continuous testing and patching.
+Even harmless-looking fields like bio can become XSS vectors if not validated.
+Tools like Helmet and CSP greatly reduce common vulnerabilities.
+npm audit is essential but must be used cautiously because --force can break dependencies.
+Ethical and legal responsibilities are just as important as technical fixes.
 
-
-ENCRYPTION_KEY must be exactly 32 characters (required for AES-256-CBC).
-
-1.4 Start the HTTPS Server
-npm run dev
-
-
-Expected output:
-
-HTTPS server running securely on port 3001
-Connected to MongoDB
-
-1.5 Access the Application
-https://localhost:3001
-
-1.6 Pages Included
-
-register.html
-
-login.html
-
-dashboard.html (JWT-protected)
-
-2. Input Validation (Client + Server)
-2.1 Validation Rules
-✔ Name
-
-3–50 characters
-
-Alphabets + spaces only
-
-Regex:
-
-/^[A-Za-z\s]{3,50}$/
-
-✔ Email
-
-Must follow RFC format
-
-Validated with validator.isEmail()
-
-Normalized with validator.normalizeEmail()
-
-✔ Bio
-
-Maximum 500 characters
-
-No HTML tags
-
-No JavaScript event attributes
-
-Allowed characters:
-A–Z, 0–9, spaces, . , ! ? ' " ( ) -
-
-Regex:
-
-[A-Za-z0-9\s.,!?'"()-]*
-
-2.2 Client-Side Validation
-
-Located in public/dashboard.js.
-Provides instant UX feedback but does not replace server-side validation.
-
-2.3 Server-Side Validation
-
-Server enforces:
-
-Regex matching
-
-Email validation
-
-Length limits
-
-validator.escape()
-
-Blocking HTML tags
-
-Blocking event attributes (onerror, onclick, etc.)
-
-Example server error:
-
-{ "error": "Invalid name format" }
-
-3. Output Encoding & Sanitization
-
-Ensures that any stored or incoming data cannot execute as JavaScript.
-
-Techniques Used
-
-validator.escape() → escapes <script> to &lt;script&gt;
-
-validator.stripLow() → removes hidden ASCII characters
-
-Blocking:
-
-<script>
-
-<iframe>
-
-<img>
-
-on* event handlers
-
-Result: Stored XSS attacks become impossible.
-
-4. Encryption Techniques
-4.1 AES-256-CBC Encryption (At Rest)
-
-Sensitive fields encrypted before storing in MongoDB:
-
-email → emailEncrypted
-
-bio → bioEncrypted
-
-Each field uses a unique IV (initialization vector).
-
-Example MongoDB document:
-{
-  "emailEncrypted": "b38a0c9f9a...",
-  "emailIV": "4ba82fc1...",
-  "bioEncrypted": "c9af39bb81...",
-  "bioIV": "88ecf33d..."
-}
-
-
-Encryption logic stored in:
-
-utils/encryption.js
-
-4.2 HTTPS Encryption (In Transit)
-
-All communication uses:
-
-An SSL certificate
-
-Node.js HTTPS server
-
-Protects users from:
-
-MITM attacks
-
-Token hijacking
-
-Credential theft
-
-5. Dependency Management
-5.1 Manual Audit
-npm audit
-
-
-Expected:
-
-found 0 vulnerabilities
-
-5.2 GitHub Automated Auditing
-
-Workflow file:
-
-.github/workflows/security.yml
-
-
-Runs:
-
-npm install
-
-npm audit
-
-Flags vulnerabilities automatically
-
-6. Reflection (Lessons Learned)
-
-This phase significantly strengthened understanding of real-world security practices.
-
-Key Takeaways
-
-✔ Security must be layered (validation + sanitization + encryption + HTTPS)
-
-✔ Input validation blocks harmful data early
-
-✔ Output encoding prevents stored XSS
-
-✔ AES-256-CBC secures sensitive information
-
-✔ HTTPS ensures encrypted transmission
-
-✔ Dependency auditing keeps the project safe long-term
-
-Malicious Payloads Tested
-<script>alert(1)</script>
-<img src=x onerror=alert(1)>
-Zero-width whitespace characters
-SQL-style strings
-
-
-All were successfully sanitized or blocked, demonstrating effective protection.
-
-This assignment helped apply production-level, industry-relevant security practices.

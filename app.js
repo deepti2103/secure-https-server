@@ -18,6 +18,15 @@ import { verifyToken, verifyRole } from "./middleware/authMiddleware.js";
 dotenv.config();
 
 const app = express();
+// 🔐 Custom Security Headers
+app.use((req, res, next) => {
+  // Prevent clickjacking
+  res.setHeader("X-Frame-Options", "DENY");
+  // Prevent MIME type sniffing
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  next();
+});
+
 
 // ✅ Resolve __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
